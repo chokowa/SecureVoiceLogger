@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Voice Logger</title>
+    <title>Voice Logger (Lightweight)</title>
     <style>
         :root {
-            --primary-color: #ff4b4b;
-            --bg-color: #f8f9fa;
+            --primary-color: #007bff; /* 青色に変更して気分一新 */
+            --bg-color: #f0f2f5;
             --text-color: #333;
         }
         body {
@@ -22,7 +22,7 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            touch-action: manipulation; /* ダブルタップズーム防止 */
+            touch-action: manipulation;
         }
         .container {
             text-align: center;
@@ -32,7 +32,6 @@
             box-sizing: border-box;
         }
         
-        /* ビジュアライザー */
         canvas {
             width: 100%;
             height: 120px;
@@ -42,13 +41,11 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
-        /* 録音ボタンエリア */
         .record-btn-wrapper {
             position: relative;
             width: 100px;
             height: 100px;
             margin: 30px auto;
-            /* クリック判定を確実にする */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -60,10 +57,10 @@
             border-radius: 50%;
             background-color: var(--primary-color);
             border: none;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
             cursor: pointer;
             position: relative;
-            z-index: 10; /* 最前面へ */
+            z-index: 10;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
@@ -72,45 +69,27 @@
             -webkit-tap-highlight-color: transparent;
         }
         
-        .record-btn:active {
-            transform: scale(0.95);
-        }
+        .record-btn:active { transform: scale(0.95); }
 
-        /* アイコン類 */
         .icon-mic {
-            width: 24px;
-            height: 34px;
-            border: 2px solid white;
-            border-radius: 12px;
-            position: relative;
-            pointer-events: none; /* クリックをボタンに貫通させる */
+            width: 24px; height: 34px; border: 2px solid white; border-radius: 12px; position: relative; pointer-events: none;
         }
         .icon-mic::after {
-            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
-            width: 12px; height: 4px; background-color: white;
+            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 12px; height: 4px; background-color: white;
         }
         .icon-mic::before {
-            content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
-            width: 20px; height: 10px;
-            border-bottom: 2px solid white; border-left: 2px solid white; border-right: 2px solid white;
-            border-radius: 0 0 20px 20px;
+            content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 20px; height: 10px;
+            border-bottom: 2px solid white; border-left: 2px solid white; border-right: 2px solid white; border-radius: 0 0 20px 20px;
         }
 
         .icon-stop {
-            width: 24px; height: 24px; background-color: white; border-radius: 4px;
-            display: none; pointer-events: none;
+            width: 24px; height: 24px; background-color: white; border-radius: 4px; display: none; pointer-events: none;
         }
 
-        /* アニメーション */
         .pulse-ring {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            border: 2px solid var(--primary-color);
-            opacity: 0;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 2px solid var(--primary-color); opacity: 0; pointer-events: none;
         }
 
         body.recording .record-btn { background-color: #333; }
@@ -124,23 +103,19 @@
         }
 
         .status-text { font-size: 1.5rem; font-weight: bold; margin: 10px 0; min-height: 2rem; }
-        
-        /* エラーログ用 */
-        #error-log {
-            color: red; font-size: 0.8rem; margin-top: 10px; white-space: pre-wrap;
-            display: none; /* エラー時のみ表示 */
-        }
+        #data-size { font-size: 0.9rem; color: #666; margin-top: 5px; }
+        #error-log { color: red; font-size: 0.8rem; margin-top: 10px; white-space: pre-wrap; display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Secure Voice Logger</h1>
-        <div style="font-size:0.9rem; color:#999;">Modern UI Ver.</div>
+        <h1>Voice Logger <span style="font-size:0.6em; color:#999;">Lite</span></h1>
         
         <canvas id="visualizer"></canvas>
 
         <div class="status-text" id="status">Loading...</div>
+        <div id="data-size">0 KB</div>
 
         <div class="record-btn-wrapper">
             <div class="pulse-ring"></div>
@@ -154,7 +129,6 @@
     </div>
 
     <script>
-        // === 設定 ===
         const CONFIG = {
             sampleRate: 16000,
             nFft: 400,
@@ -162,52 +136,41 @@
             nMels: 80
         };
 
-        // === グローバル変数 ===
         let audioCtx, processor, source;
         let isRecording = false;
         let melFilters = null;
-        let melFrames = [];
+        let melFrames = []; // 特徴量を蓄積
         let sampleBuffer = [];
         let cosTable, sinTable;
         let animationId;
         
         const statusEl = document.getElementById('status');
+        const sizeEl = document.getElementById('data-size');
         const canvas = document.getElementById('visualizer');
         const canvasCtx = canvas.getContext('2d');
         const errorEl = document.getElementById('error-log');
 
-        // エラー表示用
         window.onerror = function(msg, url, line) {
             errorEl.style.display = 'block';
             errorEl.innerText += `Error: ${msg} (Line ${line})\n`;
         };
 
-        // === 初期化 ===
         window.onload = async () => {
             console.log("App Started");
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
-            
-            // DFTテーブル事前計算
             precomputeDFT();
             
             try {
-                // フィルタ読み込み
-                statusEl.innerText = "Loading Filters...";
                 const res = await fetch('mel_filters.json');
                 if(!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-                
                 const data = await res.json();
                 melFilters = data.filters;
-                
-                if(!melFilters || melFilters.length !== 80) throw new Error("フィルタ形式が不正です");
-
-                console.log("Filters Loaded");
+                if(!melFilters || melFilters.length !== 80) throw new Error("フィルタ不正");
                 statusEl.innerText = "Ready";
-                
             } catch(e) {
                 statusEl.innerText = "Init Error";
-                alert("初期化エラー: mel_filters.json が読み込めません。\n" + e.message);
+                alert("初期化エラー: mel_filters.json が読み込めません");
             }
         };
 
@@ -216,42 +179,24 @@
             canvas.height = canvas.offsetHeight;
         }
 
-        // === クリックハンドラ ===
         async function handleBtnClick() {
-            // フィルタ未ロード時のガード
-            if(!melFilters) {
-                alert("フィルタ読込中です。少々お待ちください。\n(表示が変わらない場合はリロードしてください)");
-                return;
-            }
-
-            if(!isRecording) {
-                await startRecording();
-            } else {
-                stopRecording();
-            }
+            if(!melFilters) return alert("フィルタ読込中です");
+            if(!isRecording) await startRecording();
+            else stopRecording();
         }
 
         async function startRecording() {
             try {
-                // マイク取得
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
-                
-                // サスペンド対策
-                if(audioCtx.state === 'suspended') {
-                    await audioCtx.resume();
-                }
+                if(audioCtx.state === 'suspended') await audioCtx.resume();
 
                 source = audioCtx.createMediaStreamSource(stream);
                 processor = audioCtx.createScriptProcessor(4096, 1, 1);
-                
-                // ビジュアライザー用
                 const analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 2048;
                 
-                // 接続: Source -> Analyser -> Processor -> Destination
                 source.connect(analyser);
                 analyser.connect(processor);
                 processor.connect(audioCtx.destination);
@@ -260,39 +205,37 @@
                 sampleBuffer = [];
                 isRecording = true;
                 
-                // UI更新
                 document.body.classList.add('recording');
                 statusEl.innerText = "Recording...";
                 
-                // 音声処理ループ
                 processor.onaudioprocess = (e) => {
                     if(!isRecording) return;
-                    const input = e.inputBuffer.getChannelData(0);
-                    processAudioChunk(input);
+                    processAudioChunk(e.inputBuffer.getChannelData(0));
                 };
 
-                // 描画ループ
+                // 描画とサイズ表示ループ
                 const bufferLength = analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
-                
                 const draw = () => {
                     if(!isRecording) return;
                     animationId = requestAnimationFrame(draw);
                     analyser.getByteTimeDomainData(dataArray);
                     drawWaveform(dataArray);
+                    
+                    // 現在のデータサイズ概算 (1フレーム = 80bytes)
+                    const kb = Math.round((melFrames.length * 80) / 1024);
+                    sizeEl.innerText = `${kb} KB`;
                 };
                 draw();
 
             } catch(e) {
                 alert("録音開始エラー: " + e.message);
-                console.error(e);
             }
         }
 
         function stopRecording() {
             isRecording = false;
             cancelAnimationFrame(animationId);
-            
             if(source) { source.disconnect(); source = null; }
             if(processor) { processor.disconnect(); processor = null; }
             if(audioCtx) { audioCtx.close(); audioCtx = null; }
@@ -301,14 +244,11 @@
             statusEl.innerText = "Saved!";
             drawFlatLine();
 
-            if(melFrames.length > 0) {
-                saveFile();
-            } else {
-                alert("音声データが空でした");
-            }
+            if(melFrames.length > 0) saveBinaryFile();
+            else alert("データが空でした");
         }
 
-        // === 信号処理 (安定版DFT) ===
+        // === 信号処理 ===
         function precomputeDFT() {
             const N = CONFIG.nFft;
             cosTable = new Float32Array((N/2 + 1) * N);
@@ -326,10 +266,9 @@
         function processAudioChunk(inputData) {
             for(let i=0; i<inputData.length; i++) {
                 let val = inputData[i];
-                if(Number.isNaN(val)) val = 0; // 安全策
+                if(Number.isNaN(val)) val = 0;
                 sampleBuffer.push(val);
             }
-            
             while(sampleBuffer.length >= CONFIG.nFft) {
                 const frame = sampleBuffer.slice(0, CONFIG.nFft);
                 sampleBuffer.splice(0, CONFIG.hopLength);
@@ -339,14 +278,11 @@
 
         function computeMel(waveform) {
             const N = CONFIG.nFft;
-            // 窓関数
             const windowed = new Float32Array(N);
             for(let i=0; i<N; i++) {
-                const win = 0.5 * (1 - Math.cos((2 * Math.PI * i) / N));
-                windowed[i] = waveform[i] * win;
+                windowed[i] = waveform[i] * (0.5 * (1 - Math.cos((2 * Math.PI * i) / N)));
             }
 
-            // DFT
             const magnitudes = new Float32Array(N/2 + 1);
             for(let k=0; k<=N/2; k++) {
                 let re = 0, im = 0;
@@ -358,38 +294,33 @@
                 magnitudes[k] = re*re + im*im;
             }
 
-            // Mel Filter
             const melFrame = [];
             for(let m=0; m<CONFIG.nMels; m++) {
                 let sum = 0;
                 for(let k=0; k<magnitudes.length; k++) {
                     sum += melFilters[m][k] * magnitudes[k];
                 }
-                // Log10
                 if(Number.isNaN(sum)) sum = 0;
-                const val = Math.log10(Math.max(sum, 1e-10));
-                melFrame.push(val);
+                melFrame.push(Math.log10(Math.max(sum, 1e-10)));
             }
             melFrames.push(melFrame);
         }
 
-        // === 描画・保存 ===
+        // === 描画・バイナリ保存 ===
         function drawWaveform(data) {
             const w = canvas.width;
             const h = canvas.height;
             canvasCtx.fillStyle = '#fff';
             canvasCtx.fillRect(0, 0, w, h);
             canvasCtx.lineWidth = 2;
-            canvasCtx.strokeStyle = '#ff4b4b';
+            canvasCtx.strokeStyle = '#007bff';
             canvasCtx.beginPath();
-
             const sliceWidth = w * 1.0 / data.length;
             let x = 0;
             for(let i = 0; i < data.length; i++) {
                 const v = data[i] / 128.0;
                 const y = v * h / 2;
-                if(i === 0) canvasCtx.moveTo(x, y);
-                else canvasCtx.lineTo(x, y);
+                if(i === 0) canvasCtx.moveTo(x, y); else canvasCtx.lineTo(x, y);
                 x += sliceWidth;
             }
             canvasCtx.lineTo(w, h/2);
@@ -401,14 +332,61 @@
             canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        function saveFile() {
-            const blob = new Blob([JSON.stringify(melFrames)], { type: "application/json" });
+        // ★軽量化の心臓部: バイナリ保存機能
+        function saveBinaryFile() {
+            // 1. 全データのMin/Maxを計算 (ダイナミックレンジ最適化)
+            let minVal = Infinity, maxVal = -Infinity;
+            for(let i=0; i<melFrames.length; i++) {
+                for(let j=0; j<CONFIG.nMels; j++) {
+                    const v = melFrames[i][j];
+                    if(v < minVal) minVal = v;
+                    if(v > maxVal) maxVal = v;
+                }
+            }
+            
+            // 安全マージン
+            if (minVal === Infinity) { minVal = -10.0; maxVal = 2.0; }
+            if (maxVal === minVal) maxVal = minVal + 1.0;
+
+            // 2. バイナリバッファ作成
+            // Header: 24 bytes
+            // [Magic "VLOG"(4)][Version(4)][Frames(4)][Mels(4)][Min(4)][Max(4)]
+            // Body: Frames * Mels bytes (Uint8)
+            const headerSize = 24;
+            const bodySize = melFrames.length * CONFIG.nMels;
+            const buffer = new ArrayBuffer(headerSize + bodySize);
+            const view = new DataView(buffer);
+            
+            // Header書き込み
+            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71); // "VLOG"
+            view.setUint32(4, 1, true); // Version 1
+            view.setUint32(8, melFrames.length, true);
+            view.setUint32(12, CONFIG.nMels, true);
+            view.setFloat32(16, minVal, true);
+            view.setFloat32(20, maxVal, true);
+
+            // Body書き込み (量子化: float -> uint8)
+            const bodyView = new Uint8Array(buffer, headerSize);
+            let ptr = 0;
+            for(let i=0; i<melFrames.length; i++) {
+                for(let j=0; j<CONFIG.nMels; j++) {
+                    // 0-255に正規化
+                    const normalized = (melFrames[i][j] - minVal) / (maxVal - minVal);
+                    let byteVal = Math.floor(normalized * 255);
+                    if(byteVal < 0) byteVal = 0;
+                    if(byteVal > 255) byteVal = 255;
+                    bodyView[ptr++] = byteVal;
+                }
+            }
+
+            // ダウンロード処理
+            const blob = new Blob([buffer], { type: "application/octet-stream" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
             const now = new Date();
             const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            a.download = `voice_log_${timestamp}.json`;
+            a.download = `voice_log_${timestamp}.bin`; // 拡張子を .bin に変更
             a.click();
         }
     </script>
