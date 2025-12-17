@@ -2,242 +2,406 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Voice Logger (Stable DFT)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Voice Logger</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; }
-        button { padding: 15px 30px; font-size: 1.2em; margin: 10px; cursor: pointer; }
-        #status { margin-top: 20px; font-weight: bold; color: #333; font-size: 1.2em; }
-        #debug { 
-            margin-top: 20px; color: #333; font-size: 0.9em; 
-            white-space: pre-wrap; background: #f0f0f0; padding: 10px; text-align: left;
-            height: 200px; overflow-y: scroll; border: 1px solid #ccc;
+        :root {
+            --primary-color: #ff4b4b;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --wave-color: #ff4b4b;
         }
-        .recording { background-color: #ffcccc; color: red; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        h1 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: normal;
+        }
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* ビジュアライザー (Canvas) */
+        canvas {
+            width: 100%;
+            height: 120px;
+            margin: 20px 0;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 録音ボタンのデザイン */
+        .record-btn-wrapper {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 30px auto;
+        }
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+            cursor: pointer;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 2;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .record-btn:active {
+            transform: scale(0.95);
+        }
+        /* 録音停止アイコン（四角） */
+        .icon-stop {
+            width: 24px;
+            height: 24px;
+            background-color: white;
+            border-radius: 4px;
+            display: none;
+        }
+        /* 録音開始アイコン（マイク） */
+        .icon-mic {
+            width: 24px;
+            height: 34px;
+            border: 2px solid white;
+            border-radius: 12px;
+            position: relative;
+        }
+        .icon-mic::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 4px;
+            background-color: white;
+        }
+        .icon-mic::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 10px;
+            border-bottom: 2px solid white;
+            border-left: 2px solid white;
+            border-right: 2px solid white;
+            border-radius: 0 0 20px 20px;
+        }
+
+        /* 録音中の波紋アニメーション */
+        .pulse-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+            opacity: 0;
+            box-sizing: border-box;
+            animation: none;
+        }
+
+        /* 録音中の状態変化 */
+        body.recording .record-btn {
+            background-color: #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        body.recording .icon-mic { display: none; }
+        body.recording .icon-stop { display: block; }
+        body.recording .pulse-ring {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .status-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+            min-height: 2rem;
+        }
+        .sub-text {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        /* ログエリア（デバッグ用・普段は隠すか小さく） */
+        #debug {
+            display: none; /* 完成版なので隠す */
+            font-size: 0.7rem;
+            color: #ccc;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
-    <h1>Secure Logger (安定版 DFT)</h1>
-    <p>計算バグを排除した高安定バージョン</p>
-    
-    <button id="btnRecord" onclick="startRecording()">録音開始</button>
-    <button id="btnStop" onclick="stopRecording()" disabled>終了＆保存</button>
-    
-    <div id="status">初期化中...</div>
-    <div id="debug">ログ待機中...</div>
+
+    <div class="container">
+        <h1>Secure Voice Logger</h1>
+        <div class="sub-text">音声ファイルを残さないレコーダー</div>
+        
+        <canvas id="visualizer"></canvas>
+
+        <div class="status-text" id="status">Ready</div>
+
+        <div class="record-btn-wrapper">
+            <div class="pulse-ring"></div>
+            <button class="record-btn" id="mainBtn" onclick="toggleRecording()">
+                <div class="icon-mic"></div>
+                <div class="icon-stop"></div>
+            </button>
+        </div>
+
+        <div id="debug">System Initialized.</div>
+    </div>
 
     <script>
-        // ==========================================
-        // 設定
-        // ==========================================
-        const TARGET_SAMPLE_RATE = 16000;
-        const N_FFT = 400;
-        const HOP_LENGTH = 160;
-        const N_MELS = 80;
+        // === 設定 ===
+        const CONFIG = {
+            sampleRate: 16000,
+            nFft: 400,
+            hopLength: 160,
+            nMels: 80
+        };
 
-        let audioContext;
-        let processor;
-        let source;
+        // === グローバル変数 ===
+        let audioCtx, processor, source;
         let isRecording = false;
         let melFilters = null;
-        let processCount = 0;
-        let melFrames = []; 
+        let melFrames = [];
         let sampleBuffer = [];
+        
+        // DFT用テーブル
+        let cosTable, sinTable;
 
-        // cos/sinテーブル（計算高速化用）
-        let cosTable = null;
-        let sinTable = null;
+        // UI要素
+        const statusEl = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        let animationId;
+        let latestTimeDomainData = new Uint8Array(0); // ビジュアライザー用
 
-        function log(msg) {
-            const d = document.getElementById('debug');
-            d.innerText = msg + "\n" + d.innerText;
-            console.log(msg);
+        // === 初期化 ===
+        window.onload = async () => {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // 事前計算
+            precomputeDFT();
+            
+            try {
+                // フィルタロード
+                const res = await fetch('mel_filters.json');
+                if(!res.ok) throw new Error("フィルタ読み込み失敗");
+                const data = await res.json();
+                melFilters = data.filters;
+                log("Ready.");
+            } catch(e) {
+                statusEl.innerText = "Error";
+                alert("初期化エラー: mel_filters.json が見つかりません");
+            }
+        };
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
         }
 
-        // ==========================================
-        // 1. 初期化プロセス
-        // ==========================================
-        window.onload = async () => {
-            log("システム起動: 安定版DFTモード");
-            
-            // 三角関数テーブルの事前計算 (DFT高速化)
-            cosTable = new Float32Array((N_FFT/2 + 1) * N_FFT);
-            sinTable = new Float32Array((N_FFT/2 + 1) * N_FFT);
-            
-            for (let k = 0; k <= N_FFT / 2; k++) {
-                for (let t = 0; t < N_FFT; t++) {
-                    const angle = (2 * Math.PI * k * t) / N_FFT;
-                    const idx = k * N_FFT + t;
+        function precomputeDFT() {
+            const N = CONFIG.nFft;
+            cosTable = new Float32Array((N/2 + 1) * N);
+            sinTable = new Float32Array((N/2 + 1) * N);
+            for(let k=0; k<=N/2; k++) {
+                for(let t=0; t<N; t++) {
+                    const angle = (2 * Math.PI * k * t) / N;
+                    const idx = k*N + t;
                     cosTable[idx] = Math.cos(angle);
                     sinTable[idx] = Math.sin(angle);
                 }
             }
+        }
 
-            try {
-                const response = await fetch('mel_filters.json');
-                if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
-                
-                const data = await response.json();
-                melFilters = data.filters;
-                
-                if(!melFilters || melFilters.length !== 80) throw new Error("フィルタデータ不正");
-
-                log("準備完了: フィルタロードOK");
-                document.getElementById('status').innerText = "準備完了";
-            } catch (e) {
-                log("【エラー】" + e.message);
-                alert("mel_filters.jsonの読み込みに失敗しました");
+        // === メイン操作 ===
+        async function toggleRecording() {
+            if(!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
             }
-        };
+        }
 
-        // ==========================================
-        // 2. 録音制御
-        // ==========================================
         async function startRecording() {
-            if (!melFilters) return alert("準備ができていません");
-            
+            if(!melFilters) return;
+
             try {
-                log("マイク接続中...");
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+                audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
+                if(audioCtx.state === 'suspended') await audioCtx.resume();
 
-                if (audioContext.state === 'suspended') await audioContext.resume();
+                source = audioCtx.createMediaStreamSource(stream);
+                processor = audioCtx.createScriptProcessor(4096, 1, 1);
+                
+                // ビジュアライザー用のAnalyzer
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                source.connect(analyser);
+                analyser.connect(processor);
+                processor.connect(audioCtx.destination);
 
-                log(`AudioContext: ${audioContext.sampleRate}Hz`);
-
-                source = audioContext.createMediaStreamSource(stream);
-                processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-                source.connect(processor);
-                processor.connect(audioContext.destination);
-
+                // データ初期化
                 melFrames = [];
                 sampleBuffer = [];
-                processCount = 0;
                 isRecording = true;
-
+                
+                // UI更新
+                document.body.classList.add('recording');
+                statusEl.innerText = "Recording..."; // 時間表示にしても良い
+                
+                // 処理ループ
                 processor.onaudioprocess = (e) => {
-                    if (!isRecording) return;
+                    if(!isRecording) return;
                     const input = e.inputBuffer.getChannelData(0);
-                    
-                    processCount++;
-                    if(processCount % 10 === 0) {
-                        document.getElementById('status').innerText = `録音中... [${processCount}]`;
-                    }
-                    
                     processAudioChunk(input);
                 };
 
-                updateUI(true);
+                // ビジュアライザー描画ループ
+                latestTimeDomainData = new Uint8Array(analyser.frequencyBinCount);
+                const draw = () => {
+                    if(!isRecording) return;
+                    analyser.getByteTimeDomainData(latestTimeDomainData);
+                    drawWaveform(latestTimeDomainData);
+                    animationId = requestAnimationFrame(draw);
+                };
+                draw();
 
-            } catch (e) {
-                log("エラー: " + e);
-                alert("マイクエラー: " + e);
+            } catch(e) {
+                alert("マイク起動エラー: " + e);
             }
         }
 
         function stopRecording() {
             isRecording = false;
-            if (source) source.disconnect();
-            if (processor) processor.disconnect();
-            if (audioContext) audioContext.close();
+            cancelAnimationFrame(animationId);
             
-            log(`録音終了。フレーム数: ${melFrames.length}`);
-            
-            // データチェック
-            let nanCount = 0;
-            melFrames.forEach(frame => {
-                frame.forEach(val => { if(Number.isNaN(val)) nanCount++; });
-            });
-            
-            if(nanCount > 0) {
-                log(`【警告】データ内に ${nanCount} 個のNaN(エラー値)が含まれています`);
-            } else {
-                log("データ整合性チェック: OK");
-            }
+            if(source) source.disconnect();
+            if(processor) processor.disconnect();
+            if(audioCtx) audioCtx.close();
 
-            downloadFeatures();
-            updateUI(false);
-            document.getElementById('status').innerText = "保存完了";
+            // UI更新
+            document.body.classList.remove('recording');
+            statusEl.innerText = "Saved!";
+            drawFlatLine(); // 波形リセット
+
+            // ダウンロード
+            if(melFrames.length > 0) {
+                saveFile();
+            } else {
+                statusEl.innerText = "No Data";
+            }
         }
 
-        // ==========================================
-        // 3. 信号処理コア (DFT版)
-        // ==========================================
+        // === 信号処理 (安定版DFT) ===
         function processAudioChunk(inputData) {
-            for (let i = 0; i < inputData.length; i++) {
-                // NaNが来たら0にする安全策
+            // バッファリング
+            for(let i=0; i<inputData.length; i++) {
                 let val = inputData[i];
-                if (Number.isNaN(val)) val = 0;
+                if(Number.isNaN(val)) val = 0;
                 sampleBuffer.push(val);
             }
 
-            while (sampleBuffer.length >= N_FFT) {
-                const frame = sampleBuffer.slice(0, N_FFT);
-                sampleBuffer.splice(0, HOP_LENGTH);
-                computeMelSpec(frame);
+            // FFTサイズ分溜まったら処理
+            while(sampleBuffer.length >= CONFIG.nFft) {
+                const frame = sampleBuffer.slice(0, CONFIG.nFft);
+                sampleBuffer.splice(0, CONFIG.hopLength);
+                computeMel(frame);
             }
         }
 
-        function computeMelSpec(waveform) {
+        function computeMel(waveform) {
+            const N = CONFIG.nFft;
             // 窓関数適用
-            const windowed = new Float32Array(N_FFT);
-            for(let i=0; i<N_FFT; i++) {
-                const win = 0.5 * (1 - Math.cos((2 * Math.PI * i) / N_FFT));
+            const windowed = new Float32Array(N);
+            for(let i=0; i<N; i++) {
+                const win = 0.5 * (1 - Math.cos((2 * Math.PI * i) / N));
                 windowed[i] = waveform[i] * win;
             }
-            
-            // DFT実行 (確実に正しい値を計算)
-            // magnitudes は N_FFT/2 + 1 個 (201個)
-            const magnitudes = new Float32Array(N_FFT / 2 + 1);
-            
-            for (let k = 0; k <= N_FFT / 2; k++) {
-                let re = 0;
-                let im = 0;
-                // 事前計算テーブルを使って高速化
-                const offset = k * N_FFT;
-                for (let t = 0; t < N_FFT; t++) {
+
+            // DFT
+            const magnitudes = new Float32Array(N/2 + 1);
+            for(let k=0; k<=N/2; k++) {
+                let re = 0, im = 0;
+                const offset = k * N;
+                for(let t=0; t<N; t++) {
                     re += windowed[t] * cosTable[offset + t];
                     im -= windowed[t] * sinTable[offset + t];
                 }
-                magnitudes[k] = re * re + im * im;
+                magnitudes[k] = re*re + im*im;
             }
 
-            // メルフィルタ適用
+            // Mel Filter Bank
             const melFrame = [];
-            for (let m = 0; m < N_MELS; m++) {
+            for(let m=0; m<CONFIG.nMels; m++) {
                 let sum = 0;
-                for (let k = 0; k < magnitudes.length; k++) {
+                for(let k=0; k<magnitudes.length; k++) {
                     sum += melFilters[m][k] * magnitudes[k];
                 }
-                
-                // ここでNaNを防ぐ究極の防壁
-                if (Number.isNaN(sum)) sum = 0;
-                
-                // 対数変換
+                // Log
+                if(Number.isNaN(sum)) sum = 0;
                 const val = Math.log10(Math.max(sum, 1e-10));
                 melFrame.push(val);
             }
             melFrames.push(melFrame);
         }
 
-        function downloadFeatures() {
-            if (melFrames.length === 0) return alert("データがありません");
-            const blob = new Blob([JSON.stringify(melFrames)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "browser_features.json";
-            a.click();
-        }
+        // === UI描画関連 ===
+        function drawWaveform(data) {
+            const w = canvas.width;
+            const h = canvas.height;
+            canvasCtx.fillStyle = '#fff';
+            canvasCtx.fillRect(0, 0, w, h);
+            canvasCtx.lineWidth = 2;
+            canvasCtx.strokeStyle = '#ff4b4b';
+            canvasCtx.beginPath();
 
-        function updateUI(recording) {
-            document.getElementById('btnRecord').disabled = recording;
-            document.getElementById('btnStop').disabled = !recording;
-            document.body.className = recording ? "recording" : "";
-        }
-    </script>
-</body>
-</html>
+            const sliceWidth = w * 1.0 / data.length;
+            let x = 0;
+
+            for(let i = 0; i < data.length; i++) {
+                const v = data[i] / 128.0;
+                const y = v * h / 2;
+                if(i === 0) canvasCtx.moveTo(x, y);
+                else
