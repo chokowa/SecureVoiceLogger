@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quick Memo</title>
     <style>
         :root {
-            --bg-color: #f9f9f9; /* メモ帳っぽい紙の色 */
+            --bg-color: #f9f9f9;
             --text-color: #333;
             --header-bg: #ffffff;
-            --border-color: #eee;
+            --border-color: #ddd;
             --accent-color: #007bff;
         }
         body {
@@ -22,50 +22,60 @@
             overflow: hidden;
         }
 
-        /* ヘッダー */
+        /* ヘッダー修正版: ノッチ対応と表示崩れ防止 */
         header {
             background-color: var(--header-bg);
             border-bottom: 1px solid var(--border-color);
-            padding: 10px 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            height: 50px; box-sizing: border-box;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            /* 上部にスマホごとの安全な余白(セーフエリア)を追加 */
+            padding-top: max(10px, env(safe-area-inset-top));
+            padding-bottom: 10px;
+            padding-left: 15px;
+            padding-right: 15px;
+            
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            min-height: 44px; /* スマホで押しやすい高さ */
+            box-sizing: content-box; /* パディングを含めない計算 */
+            
+            position: relative;
+            z-index: 100; /* 最前面に */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         h1 {
             font-size: 1.1rem; margin: 0; color: #555; font-weight: 600;
-            cursor: pointer; /* 時計をクリックで履歴表示 */
+            cursor: pointer;
+            user-select: none;
         }
 
-        /* ステルスボタン */
         .stealth-btn {
             background: none; border: none; cursor: pointer; padding: 8px;
             display: flex; align-items: center; justify-content: center;
             outline: none; -webkit-tap-highlight-color: transparent;
         }
-        .icon { width: 24px; height: 24px; fill: #999; transition: fill 0.3s; }
+        .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
         
-        /* 録音中は青く点滅 */
         body.recording .icon { fill: var(--accent-color); animation: breathe 2s infinite; }
         @keyframes breathe { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-        /* メモエリア */
         textarea {
             flex: 1; width: 100%; border: none; padding: 20px;
-            font-size: 16px; /* iOSでズームしないサイズ */
-            line-height: 1.6; resize: none; outline: none;
+            font-size: 16px; line-height: 1.6; resize: none; outline: none;
             box-sizing: border-box; background-color: transparent;
+            -webkit-overflow-scrolling: touch; /* スクロール滑らかに */
         }
 
-        /* 履歴ドロワー（隠しメニュー） */
         #history-drawer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 100;
+            background: rgba(0,0,0,0.5); z-index: 200;
             display: none; align-items: flex-end;
+            backdrop-filter: blur(2px);
         }
         #history-content {
             width: 100%; background: white; border-radius: 20px 20px 0 0;
-            max-height: 60%; overflow-y: auto; padding: 20px; box-sizing: border-box;
+            max-height: 70%; overflow-y: auto; padding: 20px; box-sizing: border-box;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
         }
         .history-item {
             padding: 15px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;
@@ -74,7 +84,10 @@
         .history-memo { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
         
         .status-bar {
-            padding: 5px 15px; font-size: 0.7rem; color: #ccc; text-align: right; background: #fff;
+            padding: 8px 15px; font-size: 0.75rem; color: #aaa; text-align: right; background: #fff;
+            border-top: 1px solid #eee;
+            /* 下部のセーフエリア対応 */
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
         }
 
         #error-log { display: none; color: red; font-size: 0.7rem; text-align: center; }
@@ -96,14 +109,17 @@
 
     <div id="history-drawer" onclick="toggleHistory()">
         <div id="history-content" onclick="event.stopPropagation()">
-            <h3 style="margin-top:0; color:#333;">Session History</h3>
-            <div id="history-list"></div>
-            <button onclick="toggleHistory()" style="width:100%; padding:15px; margin-top:10px; border:none; background:#eee; border-radius:10px;">Close</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0; color:#333;">History</h3>
+                <button onclick="toggleHistory()" style="border:none; background:none; font-size:1.2rem; padding:5px;">✕</button>
+            </div>
+            <div id="history-list">
+                <div style="color:#ccc; text-align:center; padding:20px;">No records yet</div>
+            </div>
         </div>
     </div>
 
     <script>
-        // === 設定 ===
         const CONFIG = { sampleRate: 16000, nFft: 400, hopLength: 160, nMels: 80 };
 
         let audioCtx, processor, source;
@@ -113,31 +129,29 @@
         let sampleBuffer = [];
         let cosTable, sinTable;
         let intervalId;
-        
-        // UI
+
         const statusEl = document.getElementById('status-text');
         const memoEl = document.getElementById('memo-area');
         const clockEl = document.getElementById('clock');
         const historyListEl = document.getElementById('history-list');
 
-        // 時計
+        // 時計更新
         setInterval(() => {
             const now = new Date();
             clockEl.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }, 1000);
 
-        // エラー
         window.onerror = (msg) => {
             document.getElementById('error-log').style.display = 'block';
             document.getElementById('error-log').innerText = `Err: ${msg}`;
         };
 
-        // 初期化
         window.onload = async () => {
-            // ローカル保存したメモを復元
             if(localStorage.getItem('current_memo')) {
                 memoEl.value = localStorage.getItem('current_memo');
             }
+            // 履歴復元
+            loadHistoryUI();
 
             precomputeDFT();
             try {
@@ -145,36 +159,54 @@
                 if(!res.ok) throw new Error("Net Err");
                 const data = await res.json();
                 melFilters = data.filters;
-            } catch(e) { statusEl.innerText = "Sync Error"; }
+            } catch(e) { statusEl.innerText = "Filter Err"; }
         };
 
-        // メモのローカル保存（入力するたびに保存）
         function saveMemoLocal() {
             localStorage.setItem('current_memo', memoEl.value);
         }
 
-        // 履歴画面トグル
         function toggleHistory() {
             const el = document.getElementById('history-drawer');
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
 
-        // 履歴追加
-        function addHistory(filename, memo) {
-            const item = document.createElement('div');
-            item.className = 'history-item';
-            const time = new Date().toLocaleTimeString();
-            item.innerHTML = `
-                <div>
-                    <div style="font-weight:bold; font-size:0.9rem;">${filename}</div>
-                    <div class="history-date">${time}</div>
-                </div>
-                <div class="history-memo">${memo}</div>
-            `;
-            historyListEl.prepend(item);
+        // 履歴管理機能 (Local Storage)
+        function getHistory() {
+            try {
+                return JSON.parse(localStorage.getItem('voice_log_history') || '[]');
+            } catch { return []; }
         }
 
-        // ボタン操作
+        function saveHistoryItem(filename, memo) {
+            const history = getHistory();
+            const time = new Date().toLocaleTimeString();
+            history.unshift({ filename, memo, time }); // 先頭に追加
+            if(history.length > 20) history.pop(); // 最新20件まで
+            localStorage.setItem('voice_log_history', JSON.stringify(history));
+            loadHistoryUI();
+        }
+
+        function loadHistoryUI() {
+            const history = getHistory();
+            if(history.length === 0) return;
+            
+            historyListEl.innerHTML = '';
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div style="overflow:hidden;">
+                        <div style="font-weight:bold; font-size:0.9rem;">${item.filename}</div>
+                        <div class="history-date">${item.time}</div>
+                    </div>
+                    <div class="history-memo" style="margin-left:10px;">${item.memo || '(No Memo)'}</div>
+                `;
+                historyListEl.appendChild(div);
+            });
+        }
+
+        // 録音・保存ロジック
         async function handleBtnClick() {
             if(!melFilters) return;
             if(!isRecording) await startRecording();
@@ -207,7 +239,7 @@
 
                 intervalId = setInterval(() => {
                     const kb = Math.round((melFrames.length * 80) / 1024);
-                    statusEl.innerText = `Synced: ${kb} KB`; 
+                    statusEl.innerText = `Sync: ${kb} KB`; 
                 }, 1000);
 
             } catch(e) { alert("Err: " + e.message); }
@@ -216,7 +248,6 @@
         function stopRecording() {
             isRecording = false;
             clearInterval(intervalId);
-            
             if(source) { source.disconnect(); source = null; }
             if(processor) { processor.disconnect(); processor = null; }
             if(audioCtx) { audioCtx.close(); audioCtx = null; }
@@ -227,7 +258,6 @@
             if(melFrames.length > 0) saveBinaryFileV2();
         }
 
-        // 信号処理
         function precomputeDFT() {
             const N = CONFIG.nFft;
             cosTable = new Float32Array((N/2 + 1) * N);
@@ -283,28 +313,22 @@
             melFrames.push(melFrame);
         }
 
-        // === バイナリ保存 V2 (メモ埋め込み対応) ===
         function saveBinaryFileV2() {
-            // 1. Min/Max 計算
             let minVal = Infinity, maxVal = -Infinity;
             for(let i=0; i<melFrames.length; i++) {
                 for(let j=0; j<CONFIG.nMels; j++) {
                     const v = melFrames[i][j];
-                    if(v < minVal) minVal = v;
-                    if(v > maxVal) maxVal = v;
+                    if(v < minVal) minVal = v; if(v > maxVal) maxVal = v;
                 }
             }
             if (minVal === Infinity) { minVal = -10.0; maxVal = 2.0; }
             if (maxVal === minVal) maxVal = minVal + 1.0;
 
-            // 2. メモテキストのエンコード
             const memoText = memoEl.value;
             const encoder = new TextEncoder();
             const memoBytes = encoder.encode(memoText);
             const memoLen = memoBytes.length;
 
-            // 3. バッファサイズ計算
-            // Header(24) + Body(Frames*80) + MemoLen(4) + MemoBytes
             const headerSize = 24;
             const bodySize = melFrames.length * CONFIG.nMels;
             const bufferSize = headerSize + bodySize + 4 + memoLen;
@@ -312,15 +336,13 @@
             const buffer = new ArrayBuffer(bufferSize);
             const view = new DataView(buffer);
             
-            // Header
-            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71); // "VLOG"
-            view.setUint32(4, 2, true); // Version 2 (Memo Support)
+            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71);
+            view.setUint32(4, 2, true);
             view.setUint32(8, melFrames.length, true);
             view.setUint32(12, CONFIG.nMels, true);
             view.setFloat32(16, minVal, true);
             view.setFloat32(20, maxVal, true);
 
-            // Body (Quantized Audio)
             const u8View = new Uint8Array(buffer);
             let ptr = headerSize;
             for(let i=0; i<melFrames.length; i++) {
@@ -332,17 +354,10 @@
                 }
             }
 
-            // Footer (Memo)
-            // ポインタ位置は headerSize + bodySize
             view.setUint32(ptr, memoLen, true);
             ptr += 4;
-            
-            // メモデータを書き込み
-            for(let i=0; i<memoLen; i++) {
-                u8View[ptr++] = memoBytes[i];
-            }
+            for(let i=0; i<memoLen; i++) u8View[ptr++] = memoBytes[i];
 
-            // ダウンロード
             const blob = new Blob([buffer], { type: "application/octet-stream" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -353,8 +368,7 @@
             a.download = filename;
             a.click();
 
-            // 履歴に追加
-            addHistory(filename, memoText);
+            saveHistoryItem(filename, memoText);
         }
     </script>
 </body>
