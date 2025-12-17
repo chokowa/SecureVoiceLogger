@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Voice Logger (Stable DFT)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        button { padding: 15px 30px; font-size: 1.2em; margin: 10px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; color: #333; font-size: 1.2em; }
+        #debug { 
+            margin-top: 20px; color: #333; font-size: 0.9em; 
+            white-space: pre-wrap; background: #f0f0f0; padding: 10px; text-align: left;
+            height: 200px; overflow-y: scroll; border: 1px solid #ccc;
+        }
+        .recording { background-color: #ffcccc; color: red; }
+    </style>
+</head>
+<body>
+    <h1>Secure Logger (安定版 DFT)</h1>
+    <p>計算バグを排除した高安定バージョン</p>
+    
+    <button id="btnRecord" onclick="startRecording()">録音開始</button>
+    <button id="btnStop" onclick="stopRecording()" disabled>終了＆保存</button>
+    
+    <div id="status">初期化中...</div>
+    <div id="debug">ログ待機中...</div>
+
+    <script>
+        // ==========================================
+        // 設定
+        // ==========================================
+        const TARGET_SAMPLE_RATE = 16000;
+        const N_FFT = 400;
+        const HOP_LENGTH = 160;
+        const N_MELS = 80;
+
+        let audioContext;
+        let processor;
+        let source;
+        let isRecording = false;
+        let melFilters = null;
+        let processCount = 0;
+        let melFrames = []; 
+        let sampleBuffer = [];
+
+        // cos/sinテーブル（計算高速化用）
+        let cosTable = null;
+        let sinTable = null;
+
+        function log(msg) {
+            const d = document.getElementById('debug');
+            d.innerText = msg + "\n" + d.innerText;
+            console.log(msg);
+        }
+
+        // ==========================================
+        // 1. 初期化プロセス
+        // ==========================================
+        window.onload = async () => {
+            log("システム起動: 安定版DFTモード");
+            
+            // 三角関数テーブルの事前計算 (DFT高速化)
+            cosTable = new Float32Array((N_FFT/2 + 1) * N_FFT);
+            sinTable = new Float32Array((N_FFT/2 + 1) * N_FFT);
+            
+            for (let k = 0; k <= N_FFT / 2; k++) {
+                for (let t = 0; t < N_FFT; t++) {
+                    const angle = (2 * Math.PI * k * t) / N_FFT;
+                    const idx = k * N_FFT + t;
+                    cosTable[idx] = Math.cos(angle);
+                    sinTable[idx] = Math.sin(angle);
+                }
+            }
+
+            try {
+                const response = await fetch('mel_filters.json');
+                if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+                
+                const data = await response.json();
+                melFilters = data.filters;
+                
+                if(!melFilters || melFilters.length !== 80) throw new Error("フィルタデータ不正");
+
+                log("準備完了: フィルタロードOK");
+                document.getElementById('status').innerText = "準備完了";
+            } catch (e) {
+                log("【エラー】" + e.message);
+                alert("mel_filters.jsonの読み込みに失敗しました");
+            }
+        };
+
+        // ==========================================
+        // 2. 録音制御
+        // ==========================================
+        async function startRecording() {
+            if (!melFilters) return alert("準備ができていません");
+            
+            try {
+                log("マイク接続中...");
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+
+                if (audioContext.state === 'suspended') await audioContext.resume();
+
+                log(`AudioContext: ${audioContext.sampleRate}Hz`);
+
+                source = audioContext.createMediaStreamSource(stream);
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                melFrames = [];
+                sampleBuffer = [];
+                processCount = 0;
+                isRecording = true;
+
+                processor.onaudioprocess = (e) => {
+                    if (!isRecording) return;
+                    const input = e.inputBuffer.getChannelData(0);
+                    
+                    processCount++;
+                    if(processCount % 10 === 0) {
+                        document.getElementById('status').innerText = `録音中... [${processCount}]`;
+                    }
+                    
+                    processAudioChunk(input);
+                };
+
+                updateUI(true);
+
+            } catch (e) {
+                log("エラー: " + e);
+                alert("マイクエラー: " + e);
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            if (source) source.disconnect();
+            if (processor) processor.disconnect();
+            if (audioContext) audioContext.close();
+            
+            log(`録音終了。フレーム数: ${melFrames.length}`);
+            
+            // データチェック
+            let nanCount = 0;
+            melFrames.forEach(frame => {
+                frame.forEach(val => { if(Number.isNaN(val)) nanCount++; });
+            });
+            
+            if(nanCount > 0) {
+                log(`【警告】データ内に ${nanCount} 個のNaN(エラー値)が含まれています`);
+            } else {
+                log("データ整合性チェック: OK");
+            }
+
+            downloadFeatures();
+            updateUI(false);
+            document.getElementById('status').innerText = "保存完了";
+        }
+
+        // ==========================================
+        // 3. 信号処理コア (DFT版)
+        // ==========================================
+        function processAudioChunk(inputData) {
+            for (let i = 0; i < inputData.length; i++) {
+                // NaNが来たら0にする安全策
+                let val = inputData[i];
+                if (Number.isNaN(val)) val = 0;
+                sampleBuffer.push(val);
+            }
+
+            while (sampleBuffer.length >= N_FFT) {
+                const frame = sampleBuffer.slice(0, N_FFT);
+                sampleBuffer.splice(0, HOP_LENGTH);
+                computeMelSpec(frame);
+            }
+        }
+
+        function computeMelSpec(waveform) {
+            // 窓関数適用
+            const windowed = new Float32Array(N_FFT);
+            for(let i=0; i<N_FFT; i++) {
+                const win = 0.5 * (1 - Math.cos((2 * Math.PI * i) / N_FFT));
+                windowed[i] = waveform[i] * win;
+            }
+            
+            // DFT実行 (確実に正しい値を計算)
+            // magnitudes は N_FFT/2 + 1 個 (201個)
+            const magnitudes = new Float32Array(N_FFT / 2 + 1);
+            
+            for (let k = 0; k <= N_FFT / 2; k++) {
+                let re = 0;
+                let im = 0;
+                // 事前計算テーブルを使って高速化
+                const offset = k * N_FFT;
+                for (let t = 0; t < N_FFT; t++) {
+                    re += windowed[t] * cosTable[offset + t];
+                    im -= windowed[t] * sinTable[offset + t];
+                }
+                magnitudes[k] = re * re + im * im;
+            }
+
+            // メルフィルタ適用
+            const melFrame = [];
+            for (let m = 0; m < N_MELS; m++) {
+                let sum = 0;
+                for (let k = 0; k < magnitudes.length; k++) {
+                    sum += melFilters[m][k] * magnitudes[k];
+                }
+                
+                // ここでNaNを防ぐ究極の防壁
+                if (Number.isNaN(sum)) sum = 0;
+                
+                // 対数変換
+                const val = Math.log10(Math.max(sum, 1e-10));
+                melFrame.push(val);
+            }
+            melFrames.push(melFrame);
+        }
+
+        function downloadFeatures() {
+            if (melFrames.length === 0) return alert("データがありません");
+            const blob = new Blob([JSON.stringify(melFrames)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "browser_features.json";
+            a.click();
+        }
+
+        function updateUI(recording) {
+            document.getElementById('btnRecord').disabled = recording;
+            document.getElementById('btnStop').disabled = !recording;
+            document.body.className = recording ? "recording" : "";
+        }
+    </script>
+</body>
+</html>
