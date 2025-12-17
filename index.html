@@ -29,11 +29,10 @@
         }
         .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
         
-        /* 録音ボタンのスタイル */
+        /* 動作中(Recording)のスタイル -> "Active" */
         body.recording .record-icon { fill: var(--accent-color); animation: breathe 2s infinite; }
         @keyframes breathe { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         
-        /* ペンボタンのスタイル */
         .pen-icon { width: 24px; height: 24px; }
 
         textarea { flex: 1; width: 100%; border: none; padding: 20px; font-size: 16px; line-height: 1.6; resize: none; outline: none; box-sizing: border-box; background-color: transparent; -webkit-overflow-scrolling: touch; }
@@ -88,7 +87,7 @@
         const CONFIG = { sampleRate: 16000 };
         let audioCtx, processor, source;
         let isRecording = false;
-        let pcmChunks = []; // 現在のセッションの音声データ
+        let pcmChunks = []; // μ-law chunks
         let intervalId;
 
         const statusEl = document.getElementById('status-text');
@@ -103,7 +102,7 @@
 
         window.onerror = (msg) => {
             document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').innerText = `Err: ${msg}`;
+            document.getElementById('error-log').innerText = `Sys Err: ${msg}`; // Err prefix change
         };
 
         window.onload = () => {
@@ -129,7 +128,6 @@
             loadHistoryUI();
         }
 
-        // 履歴UI構築 (クリックイベント追加)
         function loadHistoryUI() {
             const history = getHistory();
             if(history.length === 0) return;
@@ -137,9 +135,7 @@
             history.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
-                // 安全にクリックイベントを設定
                 div.onclick = () => loadMemoFromHistory(item.memo);
-                
                 div.innerHTML = `
                     <div style="pointer-events:none;">
                         <div style="font-weight:bold; font-size:0.9rem;">${item.filename}</div>
@@ -151,12 +147,11 @@
             });
         }
 
-        // 履歴からメモを呼び出す
         function loadMemoFromHistory(memoText) {
-            if (confirm("メモを読み込みますか？\n(現在の入力内容は上書きされます)")) {
+            if (confirm("メモを復元しますか？\n(現在の入力内容は破棄されます)")) {
                 memoEl.value = memoText || "";
                 saveMemoLocal();
-                toggleHistory(); // ドロワーを閉じる
+                toggleHistory(); 
             }
         }
 
@@ -165,24 +160,24 @@
             else stopRecording();
         }
 
-        // メモのみ更新 (ペンボタン)
         function updateMemoOnly() {
             if (isRecording) {
-                alert("録音中は操作できません。停止してから保存してください。");
+                // "録音中" -> "データ同期中"
+                alert("データ同期中は操作できません。完了してから実行してください。");
                 return;
             }
 
             const memoText = memoEl.value;
             
-            // ケース1: 直前の音声データがメモリにある場合 -> .bin を再作成
             if (pcmChunks.length > 0) {
-                if(confirm("直前の音声データと合わせて、メモを更新保存しますか？")) {
-                    saveRawContainer(true); // true = update mode (skip history add optional)
+                // "直前の音声データ" -> "直前のシステムログ"
+                if(confirm("直前のシステムログを含めて、メモを更新しますか？")) {
+                    saveRawContainer(true); 
                 }
             } 
-            // ケース2: 音声データがない (リロード後や過去履歴) -> .txt で保存
             else {
-                if(confirm("音声データがメモリにありません(リロード等)。\nテキストファイルとして保存しますか？")) {
+                // "音声データがメモリにありません" -> "バッファデータが存在しません"
+                if(confirm("バッファデータが存在しません(セッション切れ)。\nテキストのみ保存しますか？")) {
                     saveTextOnly(memoText);
                 }
             }
@@ -212,7 +207,7 @@
                 source.connect(processor);
                 processor.connect(audioCtx.destination);
 
-                pcmChunks = []; // リセット
+                pcmChunks = [];
                 isRecording = true;
                 
                 document.body.classList.add('recording');
@@ -226,10 +221,13 @@
 
                 intervalId = setInterval(() => {
                     const kb = Math.round((pcmChunks.length * 4096) / 1024);
-                    statusEl.innerText = `Sync: ${kb} KB`; 
+                    statusEl.innerText = `Data: ${kb} KB`; 
                 }, 1000);
 
-            } catch(e) { alert("Err: " + e.message); }
+            } catch(e) { 
+                // 具体的なエラー内容（Microphone等）を見せない
+                alert("Sys Err: Device Initialization Failed (0x01)"); 
+            }
         }
 
         function stopRecording() {
@@ -240,7 +238,7 @@
             if(audioCtx) { audioCtx.close(); audioCtx = null; }
 
             document.body.classList.remove('recording');
-            statusEl.innerText = "Saved";
+            statusEl.innerText = "Done";
 
             if(pcmChunks.length > 0) saveRawContainer();
         }
@@ -276,7 +274,7 @@
             const buffer = new ArrayBuffer(bufferSize);
             const view = new DataView(buffer);
             
-            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71); // "VLOG"
+            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71);
             view.setUint32(4, 6, true);
             view.setUint32(8, totalSamples, true);
             view.setUint32(12, 16000, true);
@@ -299,7 +297,7 @@
             const now = new Date();
             const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
             
-            // ファイル名を偽装: sys_data_...
+            // ファイル名: sys_data_...
             const filename = `sys_data_${timestamp}.bin`;
             
             a.download = filename;
