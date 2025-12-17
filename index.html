@@ -5,142 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Quick Memo</title>
     <style>
-        :root {
-            --bg-color: #f9f9f9;
-            --text-color: #333;
-            --header-bg: #ffffff;
-            --border-color: #ddd;
-            --accent-color: #007bff;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0; padding: 0;
-            /* dvhを使うことでアドレスバーによるガタつきを防止 */
-            height: 100vh;
-            height: 100dvh; 
-            display: flex; flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* ヘッダー修正版: Sticky配置でバー対策 */
-        header {
-            background-color: var(--header-bg);
-            border-bottom: 1px solid var(--border-color);
-            
-            /* Stickyに変更: これでブラウザのUIバーがあっても追従します */
-            position: sticky;
-            top: 0;
-            z-index: 9999; /* 他の要素より手前に表示 */
-
-            /* 余白設定 */
-            padding-top: max(10px, env(safe-area-inset-top)); 
-            padding-bottom: 10px;
-            padding-left: 15px;
-            padding-right: 15px;
-            
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            
-            /* 高さが潰れないように固定 */
-            flex-shrink: 0; 
-            min-height: 44px;
-            box-sizing: content-box;
-            
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            font-size: 1.1rem; margin: 0; color: #555; font-weight: 600;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .stealth-btn {
-            background: none; border: none; cursor: pointer; padding: 8px;
-            display: flex; align-items: center; justify-content: center;
-            outline: none; -webkit-tap-highlight-color: transparent;
-            /* ボタンの押し判定を大きく確保 */
-            width: 44px; height: 44px; 
-        }
+        :root { --bg-color: #f9f9f9; --text-color: #333; --header-bg: #ffffff; --border-color: #ddd; --accent-color: #007bff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background-color: var(--header-bg); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 9999; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: 10px; padding-left: 15px; padding-right: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 44px; box-sizing: content-box; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.1rem; margin: 0; color: #555; font-weight: 600; cursor: pointer; user-select: none; }
+        .stealth-btn { background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent; width: 44px; height: 44px; }
         .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
-        
         body.recording .icon { fill: var(--accent-color); animation: breathe 2s infinite; }
         @keyframes breathe { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-        textarea {
-            flex: 1; width: 100%; border: none; padding: 20px;
-            font-size: 16px; line-height: 1.6; resize: none; outline: none;
-            box-sizing: border-box; background-color: transparent;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        #history-drawer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 10000; /* ヘッダーよりさらに上 */
-            display: none; align-items: flex-end;
-            backdrop-filter: blur(2px);
-        }
-        #history-content {
-            width: 100%; background: white; border-radius: 20px 20px 0 0;
-            max-height: 70%; overflow-y: auto; padding: 20px; box-sizing: border-box;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
-            padding-bottom: max(20px, env(safe-area-inset-bottom)); /* 下のバー対策 */
-        }
-        .history-item {
-            padding: 15px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;
-        }
+        textarea { flex: 1; width: 100%; border: none; padding: 20px; font-size: 16px; line-height: 1.6; resize: none; outline: none; box-sizing: border-box; background-color: transparent; -webkit-overflow-scrolling: touch; }
+        #history-drawer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; align-items: flex-end; backdrop-filter: blur(2px); }
+        #history-content { width: 100%; background: white; border-radius: 20px 20px 0 0; max-height: 70%; overflow-y: auto; padding: 20px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+        .history-item { padding: 15px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
         .history-date { font-size: 0.8rem; color: #999; }
         .history-memo { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-        
-        .status-bar {
-            padding: 8px 15px; font-size: 0.75rem; color: #aaa; text-align: right; background: #fff;
-            border-top: 1px solid #eee;
-            /* 下部のセーフエリア対応 */
-            padding-bottom: max(8px, env(safe-area-inset-bottom));
-            flex-shrink: 0;
-        }
-
+        .status-bar { padding: 8px 15px; font-size: 0.75rem; color: #aaa; text-align: right; background: #fff; border-top: 1px solid #eee; padding-bottom: max(8px, env(safe-area-inset-bottom)); flex-shrink: 0; }
         #error-log { display: none; color: red; font-size: 0.7rem; text-align: center; }
     </style>
 </head>
 <body>
-
     <header>
         <h1 id="clock" onclick="toggleHistory()">Memo</h1>
         <button class="stealth-btn" id="mainBtn" onclick="handleBtnClick()">
             <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8h10zM7 7v4h10V7H7z"/></svg>
         </button>
     </header>
-
     <textarea id="memo-area" placeholder="ここにメモを入力..." oninput="saveMemoLocal()"></textarea>
-
     <div class="status-bar" id="status-text">Ready</div>
     <div id="error-log"></div>
-
     <div id="history-drawer" onclick="toggleHistory()">
         <div id="history-content" onclick="event.stopPropagation()">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 style="margin:0; color:#333;">History</h3>
                 <button onclick="toggleHistory()" style="border:none; background:none; font-size:1.5rem; padding:0 10px;">✕</button>
             </div>
-            <div id="history-list">
-                <div style="color:#ccc; text-align:center; padding:20px;">No records yet</div>
-            </div>
+            <div id="history-list"><div style="color:#ccc; text-align:center; padding:20px;">No records yet</div></div>
         </div>
     </div>
-
+    
     <script>
-        const CONFIG = { sampleRate: 16000, nFft: 400, hopLength: 160, nMels: 80 };
-
+        const CONFIG = { sampleRate: 16000 };
         let audioCtx, processor, source;
         let isRecording = false;
-        let melFilters = null;
-        let melFrames = [];
-        let sampleBuffer = [];
-        let cosTable, sinTable;
+        let pcmChunks = []; // μ-law圧縮されたチャンクを保持
         let intervalId;
 
         const statusEl = document.getElementById('status-text');
@@ -148,7 +55,6 @@
         const clockEl = document.getElementById('clock');
         const historyListEl = document.getElementById('history-list');
 
-        // 時計更新
         setInterval(() => {
             const now = new Date();
             clockEl.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -159,38 +65,17 @@
             document.getElementById('error-log').innerText = `Err: ${msg}`;
         };
 
-        window.onload = async () => {
-            if(localStorage.getItem('current_memo')) {
-                memoEl.value = localStorage.getItem('current_memo');
-            }
-            // 履歴復元
+        window.onload = () => {
+            if(localStorage.getItem('current_memo')) memoEl.value = localStorage.getItem('current_memo');
             loadHistoryUI();
-
-            precomputeDFT();
-            try {
-                const res = await fetch('mel_filters.json');
-                if(!res.ok) throw new Error("Net Err");
-                const data = await res.json();
-                melFilters = data.filters;
-            } catch(e) { statusEl.innerText = "Filter Err"; }
         };
 
-        function saveMemoLocal() {
-            localStorage.setItem('current_memo', memoEl.value);
-        }
-
+        function saveMemoLocal() { localStorage.setItem('current_memo', memoEl.value); }
         function toggleHistory() {
             const el = document.getElementById('history-drawer');
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
-
-        // 履歴管理機能
-        function getHistory() {
-            try {
-                return JSON.parse(localStorage.getItem('voice_log_history') || '[]');
-            } catch { return []; }
-        }
-
+        function getHistory() { try { return JSON.parse(localStorage.getItem('voice_log_history') || '[]'); } catch { return []; } }
         function saveHistoryItem(filename, memo) {
             const history = getHistory();
             const time = new Date().toLocaleTimeString();
@@ -199,29 +84,19 @@
             localStorage.setItem('voice_log_history', JSON.stringify(history));
             loadHistoryUI();
         }
-
         function loadHistoryUI() {
             const history = getHistory();
             if(history.length === 0) return;
-            
             historyListEl.innerHTML = '';
             history.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
-                div.innerHTML = `
-                    <div style="overflow:hidden;">
-                        <div style="font-weight:bold; font-size:0.9rem;">${item.filename}</div>
-                        <div class="history-date">${item.time}</div>
-                    </div>
-                    <div class="history-memo" style="margin-left:10px;">${item.memo || '(No Memo)'}</div>
-                `;
+                div.innerHTML = `<div><div style="font-weight:bold; font-size:0.9rem;">${item.filename}</div><div class="history-date">${item.time}</div></div><div class="history-memo" style="margin-left:10px;">${item.memo || '(No Memo)'}</div>`;
                 historyListEl.appendChild(div);
             });
         }
 
-        // 録音・保存ロジック
         async function handleBtnClick() {
-            if(!melFilters) return;
             if(!isRecording) await startRecording();
             else stopRecording();
         }
@@ -231,15 +106,18 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
+                
+                // サスペンド対策
                 if(audioCtx.state === 'suspended') await audioCtx.resume();
 
                 source = audioCtx.createMediaStreamSource(stream);
+                // バッファサイズ 4096 (約0.25秒)
                 processor = audioCtx.createScriptProcessor(4096, 1, 1);
+                
                 source.connect(processor);
                 processor.connect(audioCtx.destination);
 
-                melFrames = [];
-                sampleBuffer = [];
+                pcmChunks = [];
                 isRecording = true;
                 
                 document.body.classList.add('recording');
@@ -247,11 +125,14 @@
                 
                 processor.onaudioprocess = (e) => {
                     if(!isRecording) return;
-                    processAudioChunk(e.inputBuffer.getChannelData(0));
+                    const input = e.inputBuffer.getChannelData(0);
+                    // ここで即座に圧縮して保存
+                    encodeMuLaw(input);
                 };
 
                 intervalId = setInterval(() => {
-                    const kb = Math.round((melFrames.length * 80) / 1024);
+                    // サイズ表示 (チャンク数 * 4096 bytes)
+                    const kb = Math.round((pcmChunks.length * 4096) / 1024);
                     statusEl.innerText = `Sync: ${kb} KB`; 
                 }, 1000);
 
@@ -268,109 +149,73 @@
             document.body.classList.remove('recording');
             statusEl.innerText = "Saved";
 
-            if(melFrames.length > 0) saveBinaryFileV2();
+            if(pcmChunks.length > 0) saveRawContainer();
         }
 
-        function precomputeDFT() {
-            const N = CONFIG.nFft;
-            cosTable = new Float32Array((N/2 + 1) * N);
-            sinTable = new Float32Array((N/2 + 1) * N);
-            for(let k=0; k<=N/2; k++) {
-                for(let t=0; t<N; t++) {
-                    const angle = (2 * Math.PI * k * t) / N;
-                    const idx = k*N + t;
-                    cosTable[idx] = Math.cos(angle);
-                    sinTable[idx] = Math.sin(angle);
-                }
+        // === μ-law Compression (Float32 -> Uint8) ===
+        // G.711規格に基づく圧縮。波形を対数的に8bitに潰す。
+        function encodeMuLaw(input) {
+            const mu = 255;
+            const chunk = new Uint8Array(input.length);
+            for(let i=0; i<input.length; i++) {
+                let sample = input[i];
+                // Clamp -1.0 ~ 1.0
+                if(sample < -1) sample = -1;
+                if(sample > 1) sample = 1;
+                
+                // sign and magnitude
+                const sign = sample < 0 ? -1 : 1;
+                const abs = Math.abs(sample);
+                
+                // μ-law algorithm
+                const encoded = Math.sign(sample) * (Math.log(1 + mu * abs) / Math.log(1 + mu));
+                
+                // -1~1 -> 0~255
+                // (val + 1) / 2 * 255
+                let uint8 = Math.floor((encoded + 1) / 2 * 255);
+                if(uint8 < 0) uint8 = 0; 
+                if(uint8 > 255) uint8 = 255;
+                
+                chunk[i] = uint8;
             }
+            pcmChunks.push(chunk);
         }
 
-        function processAudioChunk(inputData) {
-            for(let i=0; i<inputData.length; i++) {
-                let val = inputData[i];
-                if(Number.isNaN(val)) val = 0;
-                sampleBuffer.push(val);
-            }
-            while(sampleBuffer.length >= CONFIG.nFft) {
-                const frame = sampleBuffer.slice(0, CONFIG.nFft);
-                sampleBuffer.splice(0, CONFIG.hopLength);
-                computeMel(frame);
-            }
-        }
-
-        function computeMel(waveform) {
-            const N = CONFIG.nFft;
-            const windowed = new Float32Array(N);
-            for(let i=0; i<N; i++) {
-                windowed[i] = waveform[i] * (0.5 * (1 - Math.cos((2 * Math.PI * i) / N)));
-            }
-            const magnitudes = new Float32Array(N/2 + 1);
-            for(let k=0; k<=N/2; k++) {
-                let re = 0, im = 0;
-                const offset = k * N;
-                for(let t=0; t<N; t++) {
-                    re += windowed[t] * cosTable[offset + t];
-                    im -= windowed[t] * sinTable[offset + t];
-                }
-                magnitudes[k] = re*re + im*im;
-            }
-            const melFrame = [];
-            for(let m=0; m<CONFIG.nMels; m++) {
-                let sum = 0;
-                for(let k=0; k<magnitudes.length; k++) {
-                    sum += melFilters[m][k] * magnitudes[k];
-                }
-                if(Number.isNaN(sum)) sum = 0;
-                melFrame.push(Math.log10(Math.max(sum, 1e-10)));
-            }
-            melFrames.push(melFrame);
-        }
-
-        function saveBinaryFileV2() {
-            let minVal = Infinity, maxVal = -Infinity;
-            for(let i=0; i<melFrames.length; i++) {
-                for(let j=0; j<CONFIG.nMels; j++) {
-                    const v = melFrames[i][j];
-                    if(v < minVal) minVal = v; if(v > maxVal) maxVal = v;
-                }
-            }
-            if (minVal === Infinity) { minVal = -10.0; maxVal = 2.0; }
-            if (maxVal === minVal) maxVal = minVal + 1.0;
-
+        // === Save Container (Ver 6: Raw Mu-Law) ===
+        function saveRawContainer() {
             const memoText = memoEl.value;
             const encoder = new TextEncoder();
             const memoBytes = encoder.encode(memoText);
             const memoLen = memoBytes.length;
 
-            const headerSize = 24;
-            const bodySize = melFrames.length * CONFIG.nMels;
-            const bufferSize = headerSize + bodySize + 4 + memoLen;
+            // 全PCMデータを結合
+            const totalSamples = pcmChunks.length * 4096;
+            const headerSize = 20; // Magic(4)+Ver(4)+Samples(4)+Freq(4)+MemoLen(4)
+            const bufferSize = headerSize + totalSamples + memoLen;
             
             const buffer = new ArrayBuffer(bufferSize);
             const view = new DataView(buffer);
             
-            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71);
-            view.setUint32(4, 2, true);
-            view.setUint32(8, melFrames.length, true);
-            view.setUint32(12, CONFIG.nMels, true);
-            view.setFloat32(16, minVal, true);
-            view.setFloat32(20, maxVal, true);
+            // Header
+            view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71); // "VLOG"
+            view.setUint32(4, 6, true); // Version 6 (Raw Mu-Law)
+            view.setUint32(8, totalSamples, true);
+            view.setUint32(12, 16000, true); // Sample Rate
+            view.setUint32(16, memoLen, true);
 
+            // Audio Body (Uint8 Raw)
             const u8View = new Uint8Array(buffer);
             let ptr = headerSize;
-            for(let i=0; i<melFrames.length; i++) {
-                for(let j=0; j<CONFIG.nMels; j++) {
-                    const normalized = (melFrames[i][j] - minVal) / (maxVal - minVal);
-                    let byteVal = Math.floor(normalized * 255);
-                    if(byteVal < 0) byteVal = 0; if(byteVal > 255) byteVal = 255;
-                    u8View[ptr++] = byteVal;
-                }
+            
+            for(let i=0; i<pcmChunks.length; i++) {
+                u8View.set(pcmChunks[i], ptr);
+                ptr += pcmChunks[i].length;
             }
 
-            view.setUint32(ptr, memoLen, true);
-            ptr += 4;
-            for(let i=0; i<memoLen; i++) u8View[ptr++] = memoBytes[i];
+            // Memo Body
+            u8View.set(memoBytes, ptr);
 
+            // Download
             const blob = new Blob([buffer], { type: "application/octet-stream" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
