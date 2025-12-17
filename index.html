@@ -17,17 +17,20 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0; padding: 0;
+            /* dvhを使うことでアドレスバーによるズレを防止 */
             height: 100vh;
+            height: 100dvh; 
             display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        /* ヘッダー修正版: ノッチ対応と表示崩れ防止 */
+        /* ヘッダー修正版: 絶対に押しつぶされない設定 */
         header {
             background-color: var(--header-bg);
             border-bottom: 1px solid var(--border-color);
-            /* 上部にスマホごとの安全な余白(セーフエリア)を追加 */
-            padding-top: max(10px, env(safe-area-inset-top));
+            
+            /* 【重要】上部に強制的に余白を作る (ノッチ対策 + α) */
+            padding-top: max(20px, env(safe-area-inset-top)); 
             padding-bottom: 10px;
             padding-left: 15px;
             padding-right: 15px;
@@ -35,11 +38,14 @@
             display: flex; 
             justify-content: space-between; 
             align-items: center;
-            min-height: 44px; /* スマホで押しやすい高さ */
-            box-sizing: content-box; /* パディングを含めない計算 */
+            
+            /* 【重要】高さが縮まないように固定 */
+            flex-shrink: 0; 
+            min-height: 44px;
+            box-sizing: content-box;
             
             position: relative;
-            z-index: 100; /* 最前面に */
+            z-index: 100;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
@@ -53,6 +59,8 @@
             background: none; border: none; cursor: pointer; padding: 8px;
             display: flex; align-items: center; justify-content: center;
             outline: none; -webkit-tap-highlight-color: transparent;
+            /* ボタンの押し判定を大きくする */
+            width: 44px; height: 44px; 
         }
         .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
         
@@ -63,7 +71,7 @@
             flex: 1; width: 100%; border: none; padding: 20px;
             font-size: 16px; line-height: 1.6; resize: none; outline: none;
             box-sizing: border-box; background-color: transparent;
-            -webkit-overflow-scrolling: touch; /* スクロール滑らかに */
+            -webkit-overflow-scrolling: touch;
         }
 
         #history-drawer {
@@ -76,6 +84,7 @@
             width: 100%; background: white; border-radius: 20px 20px 0 0;
             max-height: 70%; overflow-y: auto; padding: 20px; box-sizing: border-box;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+            padding-bottom: max(20px, env(safe-area-inset-bottom)); /* 下のバー対策 */
         }
         .history-item {
             padding: 15px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;
@@ -88,6 +97,7 @@
             border-top: 1px solid #eee;
             /* 下部のセーフエリア対応 */
             padding-bottom: max(8px, env(safe-area-inset-bottom));
+            flex-shrink: 0; /* これも縮まないようにする */
         }
 
         #error-log { display: none; color: red; font-size: 0.7rem; text-align: center; }
@@ -111,7 +121,7 @@
         <div id="history-content" onclick="event.stopPropagation()">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 style="margin:0; color:#333;">History</h3>
-                <button onclick="toggleHistory()" style="border:none; background:none; font-size:1.2rem; padding:5px;">✕</button>
+                <button onclick="toggleHistory()" style="border:none; background:none; font-size:1.5rem; padding:0 10px;">✕</button>
             </div>
             <div id="history-list">
                 <div style="color:#ccc; text-align:center; padding:20px;">No records yet</div>
@@ -171,7 +181,7 @@
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
 
-        // 履歴管理機能 (Local Storage)
+        // 履歴管理機能
         function getHistory() {
             try {
                 return JSON.parse(localStorage.getItem('voice_log_history') || '[]');
@@ -181,8 +191,8 @@
         function saveHistoryItem(filename, memo) {
             const history = getHistory();
             const time = new Date().toLocaleTimeString();
-            history.unshift({ filename, memo, time }); // 先頭に追加
-            if(history.length > 20) history.pop(); // 最新20件まで
+            history.unshift({ filename, memo, time }); 
+            if(history.length > 20) history.pop();
             localStorage.setItem('voice_log_history', JSON.stringify(history));
             loadHistoryUI();
         }
