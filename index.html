@@ -17,20 +17,25 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0; padding: 0;
-            /* dvhを使うことでアドレスバーによるズレを防止 */
+            /* dvhを使うことでアドレスバーによるガタつきを防止 */
             height: 100vh;
             height: 100dvh; 
             display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        /* ヘッダー修正版: 絶対に押しつぶされない設定 */
+        /* ヘッダー修正版: Sticky配置でバー対策 */
         header {
             background-color: var(--header-bg);
             border-bottom: 1px solid var(--border-color);
             
-            /* 【重要】上部に強制的に余白を作る (ノッチ対策 + α) */
-            padding-top: max(20px, env(safe-area-inset-top)); 
+            /* Stickyに変更: これでブラウザのUIバーがあっても追従します */
+            position: sticky;
+            top: 0;
+            z-index: 9999; /* 他の要素より手前に表示 */
+
+            /* 余白設定 */
+            padding-top: max(10px, env(safe-area-inset-top)); 
             padding-bottom: 10px;
             padding-left: 15px;
             padding-right: 15px;
@@ -39,13 +44,11 @@
             justify-content: space-between; 
             align-items: center;
             
-            /* 【重要】高さが縮まないように固定 */
+            /* 高さが潰れないように固定 */
             flex-shrink: 0; 
             min-height: 44px;
             box-sizing: content-box;
             
-            position: relative;
-            z-index: 100;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
@@ -59,7 +62,7 @@
             background: none; border: none; cursor: pointer; padding: 8px;
             display: flex; align-items: center; justify-content: center;
             outline: none; -webkit-tap-highlight-color: transparent;
-            /* ボタンの押し判定を大きくする */
+            /* ボタンの押し判定を大きく確保 */
             width: 44px; height: 44px; 
         }
         .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
@@ -76,7 +79,7 @@
 
         #history-drawer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 200;
+            background: rgba(0,0,0,0.5); z-index: 10000; /* ヘッダーよりさらに上 */
             display: none; align-items: flex-end;
             backdrop-filter: blur(2px);
         }
@@ -97,7 +100,7 @@
             border-top: 1px solid #eee;
             /* 下部のセーフエリア対応 */
             padding-bottom: max(8px, env(safe-area-inset-bottom));
-            flex-shrink: 0; /* これも縮まないようにする */
+            flex-shrink: 0;
         }
 
         #error-log { display: none; color: red; font-size: 0.7rem; text-align: center; }
