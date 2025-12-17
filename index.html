@@ -7,44 +7,21 @@
     <style>
         :root { --bg-color: #f9f9f9; --text-color: #333; --header-bg: #ffffff; --border-color: #ddd; --accent-color: #007bff; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        header { 
-            background-color: var(--header-bg); border-bottom: 1px solid var(--border-color); 
-            position: sticky; top: 0; z-index: 9999; 
-            padding-top: max(20px, env(safe-area-inset-top)); 
-            padding-bottom: 10px; padding-left: 15px; padding-right: 15px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            flex-shrink: 0; min-height: 44px; box-sizing: content-box; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-        }
-
+        header { background-color: var(--header-bg); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 9999; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: 10px; padding-left: 15px; padding-right: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; min-height: 44px; box-sizing: content-box; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         h1 { font-size: 1.1rem; margin: 0; color: #555; font-weight: 600; cursor: pointer; user-select: none; }
-        
         .header-controls { display: flex; gap: 15px; }
-
-        .btn {
-            background: none; border: none; cursor: pointer; padding: 8px;
-            display: flex; align-items: center; justify-content: center;
-            outline: none; -webkit-tap-highlight-color: transparent; width: 44px; height: 44px; 
-        }
+        .btn { background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent; width: 44px; height: 44px; }
         .icon { width: 28px; height: 28px; fill: #888; transition: fill 0.3s; }
-        
-        /* 動作中(Recording)のスタイル -> "Active" */
         body.recording .record-icon { fill: var(--accent-color); animation: breathe 2s infinite; }
         @keyframes breathe { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-        
         .pen-icon { width: 24px; height: 24px; }
-
         textarea { flex: 1; width: 100%; border: none; padding: 20px; font-size: 16px; line-height: 1.6; resize: none; outline: none; box-sizing: border-box; background-color: transparent; -webkit-overflow-scrolling: touch; }
-        
         #history-drawer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: none; align-items: flex-end; backdrop-filter: blur(2px); }
         #history-content { width: 100%; background: white; border-radius: 20px 20px 0 0; max-height: 70%; overflow-y: auto; padding: 20px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-        
         .history-item { padding: 15px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; cursor: pointer; }
         .history-item:active { background-color: #f0f0f0; }
         .history-date { font-size: 0.8rem; color: #999; }
         .history-memo { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #333; }
-        
         .status-bar { padding: 8px 15px; font-size: 0.75rem; color: #aaa; text-align: right; background: #fff; border-top: 1px solid #eee; padding-bottom: max(8px, env(safe-area-inset-bottom)); flex-shrink: 0; }
         #error-log { display: none; color: red; font-size: 0.7rem; text-align: center; }
     </style>
@@ -52,27 +29,18 @@
 <body>
     <header>
         <h1 id="clock" onclick="toggleHistory()">Memo</h1>
-        
         <div class="header-controls">
             <button class="btn" id="updateBtn" onclick="updateMemoOnly()">
-                <svg class="icon pen-icon" viewBox="0 0 24 24">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                </svg>
+                <svg class="icon pen-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
             </button>
-
             <button class="btn" id="mainBtn" onclick="handleBtnClick()">
-                <svg class="icon record-icon" viewBox="0 0 24 24">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8h10zM7 7v4h10V7H7z"/>
-                </svg>
+                <svg class="icon record-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8h10zM7 7v4h10V7H7z"/></svg>
             </button>
         </div>
     </header>
-    
     <textarea id="memo-area" placeholder="ここにメモを入力..." oninput="saveMemoLocal()"></textarea>
-    
     <div class="status-bar" id="status-text">Ready</div>
     <div id="error-log"></div>
-    
     <div id="history-drawer" onclick="toggleHistory()">
         <div id="history-content" onclick="event.stopPropagation()">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -82,13 +50,15 @@
             <div id="history-list"><div style="color:#ccc; text-align:center; padding:20px;">No records yet</div></div>
         </div>
     </div>
-    
     <script>
-        const CONFIG = { sampleRate: 16000 };
+        // Whisperのネイティブ周波数
+        const TARGET_SAMPLE_RATE = 16000;
+        
         let audioCtx, processor, source;
         let isRecording = false;
-        let pcmChunks = []; // μ-law chunks
+        let pcm16Chunks = []; 
         let intervalId;
+        let inputSampleRate; // デバイスの実際のレート
 
         const statusEl = document.getElementById('status-text');
         const memoEl = document.getElementById('memo-area');
@@ -102,7 +72,7 @@
 
         window.onerror = (msg) => {
             document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').innerText = `Sys Err: ${msg}`; // Err prefix change
+            document.getElementById('error-log').innerText = `Sys Err: ${msg}`;
         };
 
         window.onload = () => {
@@ -111,14 +81,11 @@
         };
 
         function saveMemoLocal() { localStorage.setItem('current_memo', memoEl.value); }
-        
         function toggleHistory() {
             const el = document.getElementById('history-drawer');
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
-
         function getHistory() { try { return JSON.parse(localStorage.getItem('voice_log_history') || '[]'); } catch { return []; } }
-        
         function saveHistoryItem(filename, memo) {
             const history = getHistory();
             const time = new Date().toLocaleTimeString();
@@ -127,7 +94,6 @@
             localStorage.setItem('voice_log_history', JSON.stringify(history));
             loadHistoryUI();
         }
-
         function loadHistoryUI() {
             const history = getHistory();
             if(history.length === 0) return;
@@ -146,7 +112,6 @@
                 historyListEl.appendChild(div);
             });
         }
-
         function loadMemoFromHistory(memoText) {
             if (confirm("メモを復元しますか？\n(現在の入力内容は破棄されます)")) {
                 memoEl.value = memoText || "";
@@ -154,35 +119,14 @@
                 toggleHistory(); 
             }
         }
-
-        async function handleBtnClick() {
-            if(!isRecording) await startRecording();
-            else stopRecording();
-        }
-
         function updateMemoOnly() {
-            if (isRecording) {
-                // "録音中" -> "データ同期中"
-                alert("データ同期中は操作できません。完了してから実行してください。");
-                return;
-            }
-
-            const memoText = memoEl.value;
-            
-            if (pcmChunks.length > 0) {
-                // "直前の音声データ" -> "直前のシステムログ"
-                if(confirm("直前のシステムログを含めて、メモを更新しますか？")) {
-                    saveRawContainer(true); 
-                }
-            } 
-            else {
-                // "音声データがメモリにありません" -> "バッファデータが存在しません"
-                if(confirm("バッファデータが存在しません(セッション切れ)。\nテキストのみ保存しますか？")) {
-                    saveTextOnly(memoText);
-                }
+            if (isRecording) { alert("データ同期中は操作できません。"); return; }
+            if (pcm16Chunks.length > 0) {
+                if(confirm("直前のシステムログを含めて更新しますか？")) saveRawContainer(true); 
+            } else {
+                if(confirm("バッファデータが存在しません。\nテキストのみ保存しますか？")) saveTextOnly(memoEl.value);
             }
         }
-
         function saveTextOnly(text) {
             const blob = new Blob([text], { type: "text/plain" });
             const url = URL.createObjectURL(blob);
@@ -194,11 +138,26 @@
             a.click();
         }
 
+        async function handleBtnClick() {
+            if(!isRecording) await startRecording();
+            else stopRecording();
+        }
+
         async function startRecording() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // 自動ゲインコントロールなどをOFFにして生音を拾う
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { 
+                        echoCancellation: false, 
+                        noiseSuppression: false, 
+                        autoGainControl: true // これはONの方が安全
+                    } 
+                });
+                
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
+                audioCtx = new AudioContext(); // レート指定せずデバイスネイティブに従う
+                inputSampleRate = audioCtx.sampleRate;
+                
                 if(audioCtx.state === 'suspended') await audioCtx.resume();
 
                 source = audioCtx.createMediaStreamSource(stream);
@@ -207,7 +166,7 @@
                 source.connect(processor);
                 processor.connect(audioCtx.destination);
 
-                pcmChunks = [];
+                pcm16Chunks = [];
                 isRecording = true;
                 
                 document.body.classList.add('recording');
@@ -216,17 +175,18 @@
                 processor.onaudioprocess = (e) => {
                     if(!isRecording) return;
                     const input = e.inputBuffer.getChannelData(0);
-                    encodeMuLaw(input);
+                    // ダウンサンプリングして保存
+                    resampleAndPush(input);
                 };
 
                 intervalId = setInterval(() => {
-                    const kb = Math.round((pcmChunks.length * 4096) / 1024);
+                    // サイズ表示 (Int16なので1サンプル2バイト)
+                    const kb = Math.round((pcm16Chunks.length * 2) / 1024);
                     statusEl.innerText = `Data: ${kb} KB`; 
                 }, 1000);
 
             } catch(e) { 
-                // 具体的なエラー内容（Microphone等）を見せない
-                alert("Sys Err: Device Initialization Failed (0x01)"); 
+                alert("Sys Err: Device Init Failed (0x02)"); 
             }
         }
 
@@ -240,25 +200,38 @@
             document.body.classList.remove('recording');
             statusEl.innerText = "Done";
 
-            if(pcmChunks.length > 0) saveRawContainer();
+            if(pcm16Chunks.length > 0) saveRawContainer();
         }
 
-        function encodeMuLaw(input) {
-            const mu = 255;
-            const chunk = new Uint8Array(input.length);
-            for(let i=0; i<input.length; i++) {
-                let sample = input[i];
-                if(sample < -1) sample = -1;
-                if(sample > 1) sample = 1;
-                const sign = sample < 0 ? -1 : 1;
-                const abs = Math.abs(sample);
-                const encoded = Math.sign(sample) * (Math.log(1 + mu * abs) / Math.log(1 + mu));
-                let uint8 = Math.floor((encoded + 1) / 2 * 255);
-                if(uint8 < 0) uint8 = 0; 
-                if(uint8 > 255) uint8 = 255;
-                chunk[i] = uint8;
+        // === ダウンサンプリング & Int16変換 (高品質) ===
+        // ブラウザの44.1/48kHz -> 16kHzへ変換
+        function resampleAndPush(inputBuffer) {
+            if (inputSampleRate === TARGET_SAMPLE_RATE) {
+                // そのままInt16へ
+                for (let i = 0; i < inputBuffer.length; i++) {
+                    pcm16Chunks.push(floatTo16BitPCM(inputBuffer[i]));
+                }
+                return;
             }
-            pcmChunks.push(chunk);
+
+            const ratio = inputSampleRate / TARGET_SAMPLE_RATE;
+            const outputLength = Math.ceil(inputBuffer.length / ratio);
+            
+            for (let i = 0; i < outputLength; i++) {
+                // 簡易的な線形補間（これでも十分精度が出る）
+                const offset = i * ratio;
+                const index = Math.floor(offset);
+                const nextIndex = Math.min(index + 1, inputBuffer.length - 1);
+                const weight = offset - index;
+                
+                const val = inputBuffer[index] * (1 - weight) + inputBuffer[nextIndex] * weight;
+                pcm16Chunks.push(floatTo16BitPCM(val));
+            }
+        }
+
+        function floatTo16BitPCM(output) {
+            let s = Math.max(-1, Math.min(1, output));
+            return s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
 
         function saveRawContainer(isUpdate = false) {
@@ -267,28 +240,31 @@
             const memoBytes = encoder.encode(memoText);
             const memoLen = memoBytes.length;
 
-            const totalSamples = pcmChunks.length * 4096;
+            // pcm16Chunks は数値の配列 (巨大) -> Int16Arrayへ変換
+            const pcmData = new Int16Array(pcm16Chunks);
+            const audioByteLen = pcmData.byteLength;
+
             const headerSize = 20; 
-            const bufferSize = headerSize + totalSamples + memoLen;
+            const bufferSize = headerSize + audioByteLen + memoLen;
             
             const buffer = new ArrayBuffer(bufferSize);
             const view = new DataView(buffer);
             
+            // Header: "VLOG" + Ver7 + AudioBytes + Freq(16000) + MemoLen
             view.setUint8(0, 86); view.setUint8(1, 76); view.setUint8(2, 79); view.setUint8(3, 71);
-            view.setUint32(4, 6, true);
-            view.setUint32(8, totalSamples, true);
-            view.setUint32(12, 16000, true);
+            view.setUint32(4, 7, true); // Version 7 (Int16 16kHz)
+            view.setUint32(8, audioByteLen, true);
+            view.setUint32(12, TARGET_SAMPLE_RATE, true);
             view.setUint32(16, memoLen, true);
 
+            // Audio Body
             const u8View = new Uint8Array(buffer);
-            let ptr = headerSize;
-            
-            for(let i=0; i<pcmChunks.length; i++) {
-                u8View.set(pcmChunks[i], ptr);
-                ptr += pcmChunks[i].length;
-            }
+            // Int16Arrayのバッファをコピー
+            const pcmBytes = new Uint8Array(pcmData.buffer);
+            u8View.set(pcmBytes, headerSize);
 
-            u8View.set(memoBytes, ptr);
+            // Memo Body
+            u8View.set(memoBytes, headerSize + audioByteLen);
 
             const blob = new Blob([buffer], { type: "application/octet-stream" });
             const url = URL.createObjectURL(blob);
@@ -297,15 +273,11 @@
             const now = new Date();
             const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
             
-            // ファイル名: sys_data_...
             const filename = `sys_data_${timestamp}.bin`;
-            
             a.download = filename;
             a.click();
 
-            if (!isUpdate) {
-                saveHistoryItem(filename, memoText);
-            }
+            if (!isUpdate) saveHistoryItem(filename, memoText);
         }
     </script>
 </body>
